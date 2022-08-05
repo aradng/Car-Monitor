@@ -1,0 +1,4 @@
+{
+    "sketch": "LCD\\LCD.ino",
+    "board": "arduino:sam:arduino_due_x_dbg"
+}
