@@ -3,6 +3,8 @@
 #include <Wire.h>
 #include <vector>
 
+#include "car-lcd.h"
+
 
 
 #include <Adafruit_GFX.h>   // Core graphics library
@@ -56,6 +58,9 @@ std::vector<double> averageTemp;
 void initializeSetup() {
   tft.setRotation(3);
   tft.fillScreen(BLACK);
+  // tft.drawBitmap(0,0,epd_bitmap_car_lcd,480,320,RED);
+  // tft.setAddrWindow(0, 0, 480, 320);
+  // tft.pushColors(epd_bitmap_car_lcd,153600,1);
   tft.setTextColor(RED, BLACK);
   tft.setTextSize(6);
 
