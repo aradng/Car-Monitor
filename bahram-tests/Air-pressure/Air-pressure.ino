@@ -1,6 +1,9 @@
 
 #include <SFE_BMP180.h>
 #include <Wire.h>
+#include <vector>
+
+
 
 #include <Adafruit_GFX.h>   // Core graphics library
 #include <MCUFRIEND_kbv.h>  // Hardware-specific library
@@ -23,87 +26,98 @@ SFE_BMP180 pressure;
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("REBOOT");
   uint16_t ID = tft.readID();
-
 
   if (ID == 0xD3D3)
     ID = 0x9481;  // force ID if write-only display
   tft.begin(ID);
-  initializeSetup();
-
-  // Initialize the sensor (it is important to get calibration values stored on the device).
 
   if (pressure.begin())
     Serial.println("BMP180 init success");
   else {
-    // Oops, something went wrong, this is usually a connection problem,
-    // see the comments at the top of this sketch for the proper connections.
 
     Serial.println("BMP180 init fail\n\n");
     while (1)
-      ;  // Pause forever.
+      ;
   }
+
+  initializeSetup();
 }
+
+double p1;
+double ecoY;
+char status;
+double T, P, p0, a;
+double H = 0;
+std::vector<double> averageHeight;
+std::vector<double> averageTemp;
+
 
 void initializeSetup() {
   tft.setRotation(3);
   tft.fillScreen(BLACK);
   tft.setTextColor(RED, BLACK);
   tft.setTextSize(6);
+
+  for (int i = 0; i < 5; i++) {
+    getSensoreData();
+    averageHeight.emplace_back(H);
+    averageTemp.emplace_back(T);
+  };
 }
-double p1;
-double ecoY;
+
+double calcAverage(std::vector<double> const& v) {
+  if (v.empty()) {
+    return 0;
+  }
+  double sum = 0;
+  for (int i = 0; i < v.size(); i++) {
+    sum += v.at(i);
+  }
+  return sum / v.size();
+}
+
 void loop() {
+  getSensoreData();
 
-  tft.setCursor(30, 120);
+  averageHeight.emplace_back(H);
+  averageHeight.erase(averageHeight.begin());
 
-  char status;
-  double T, P, p0, a, H;
+  averageTemp.emplace_back(T);
+  averageTemp.erase(averageTemp.begin());
 
+  tft.setCursor(100, 100);
+  tft.print(calcAverage(averageTemp), 1);
+  tft.print(" C,");
 
+  tft.setCursor(100, 180);
+  tft.print(calcAverage(averageHeight), 0);
+  tft.print(" M, ");
+
+  delay(100);
+}
+
+void getSensoreData() {
   status = pressure.startTemperature();
   if (status != 0) {
-    // Wait for the measurement to complete:
     delay(status);
-
-    // Retrieve the completed temperature measurement:
-    // Note that the measurement is stored in the variable T.
-    // Function returns 1 if successful, 0 if failure.
-
     status = pressure.getTemperature(T);
     if (status != 0) {
-      // Print out the measurement:
       Serial.print("temperature: ");
       Serial.print(T, 2);
       Serial.println(" deg C, ");
-      tft.print(T, 2);
-      tft.print(" deg C, ");
 
       status = pressure.startPressure(3);
       if (status != 0) {
-        // Wait for the measurement to complete:
         delay(status);
-
-        // Retrieve the completed pressure measurement:
-        // Note that the measurement is stored in the variable P.
-        // Note also that the function requires the previous temperature measurement (T).
-        // (If temperature is stable, you can do one temperature measurement for a number of pressure measurements.)
-        // Function returns 1 if successful, 0 if failure.
-
         status = pressure.getPressure(P, T);
         if (status != 0) {
-          // Print out the measurement:
           Serial.print("absolute pressure: ");
-          Serial.print(P / 10, 2);
-          Serial.println("kPa, ");
-          // tft.print(P / 10, 2);
-          // tft.print(" KPa, ");
+          Serial.print(P, 2);
+          Serial.println("mba, ");
 
           H = ((pow(1013.25 / P, 1 / 5.257) - 1) * (325.15)) / 0.0065;
-          tft.print(H, 0);
-          tft.print(" M, ");
-          
+
           // Todo
           // p1 = P;
           // if (p1 > 850) {
@@ -118,36 +132,8 @@ void loop() {
           // tft.print(" Y, ");
           // tft.drawFastHLine(0, ecoY, 200,WHITE);
 
-          // The pressure sensor returns abolute pressure, which varies with altitude.
-          // To remove the effects of altitude, use the sealevel function and your current altitude.
-          // This number is commonly used in weather reports.
-          // Parameters: P = absolute pressure in mb, ALTITUDE = current altitude in m.
-          // Result: p0 = sea-level compensated pressure in mb
-
-          // p0 = pressure.sealevel(P, ALTITUDE);  // we're at 1655 meters (Boulder, CO)
-          // Serial.print("relative (sea-level) pressure: ");
-          // Serial.print(p0,2);
-          // Serial.print(" mb, ");
-          // Serial.print(p0*0.0295333727,2);
-          // Serial.println(" inHg");
-
-          // On the other hand, if you want to determine your altitude from the pressure reading,
-          // use the altitude function along with a baseline pressure (sea-level or other).
-          // Parameters: P = absolute pressure in mb, p0 = baseline pressure in mb.
-          // Result: a = altitude in m.
-
-          // a = pressure.altitude(P, 1013.25);
-          // Serial.print("computed altitude: ");
-          // Serial.print(a, 0);
-          // Serial.print(" meters, ");
-          // Serial.print(a * 3.28084, 0);
-          // Serial.println(" feet");
-
-
         } else Serial.println("error retrieving pressure measurement\n");
       } else Serial.println("error starting pressure measurement\n");
     } else Serial.println("error retrieving temperature measurement\n");
   } else Serial.println("error starting temperature measurement\n");
-
-  delay(1000);  // Pause for 5 seconds.
 }
