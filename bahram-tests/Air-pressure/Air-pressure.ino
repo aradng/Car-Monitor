@@ -3,7 +3,9 @@
 #include <Wire.h>
 #include <vector>
 
-#include "car-lcd.h"
+// #include "car-lcd.h"
+#include "car-lcd.c"
+
 
 
 
@@ -58,11 +60,15 @@ std::vector<double> averageTemp;
 void initializeSetup() {
   tft.setRotation(3);
   tft.fillScreen(BLACK);
-  // tft.drawBitmap(0,0,epd_bitmap_car_lcd,480,320,RED);
-  // tft.setAddrWindow(0, 0, 480, 320);
-  // tft.pushColors(epd_bitmap_car_lcd,153600,1);
-  tft.setTextColor(RED, BLACK);
-  tft.setTextSize(6);
+  tft.drawRGBBitmap(157, 43, vwLogo, 153, 145);
+  tft.drawRGBBitmap(145, 225, name, 189, 15);
+
+  delay(3000);
+
+  tft.drawRGBBitmap(0, 0, car_lcd, 480, 320);
+
+  tft.setTextColor(WHITE, BLACK);
+  tft.setTextSize(4);
 
   for (int i = 0; i < 5; i++) {
     getSensoreData();
@@ -91,13 +97,13 @@ void loop() {
   averageTemp.emplace_back(T);
   averageTemp.erase(averageTemp.begin());
 
-  tft.setCursor(100, 100);
+  tft.setCursor(258, 76);
   tft.print(calcAverage(averageTemp), 1);
-  tft.print(" C,");
+  tft.print(" C");
 
-  tft.setCursor(100, 180);
+  tft.setCursor(258, 216);
   tft.print(calcAverage(averageHeight), 0);
-  tft.print(" M, ");
+  tft.print(" M");
 
   delay(100);
 }
