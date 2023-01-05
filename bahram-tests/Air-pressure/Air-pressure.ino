@@ -3,27 +3,18 @@
 #include <Wire.h>
 #include <vector>
 
-// #include "car-lcd.h"
 #include "car-lcd.c"
-
-
-
 
 #include <Adafruit_GFX.h>   // Core graphics library
 #include <MCUFRIEND_kbv.h>  // Hardware-specific library
 MCUFRIEND_kbv tft;
 
-
-// You will need to create an SFE_BMP180 object, here called "pressure":
-
 SFE_BMP180 pressure;
 
-#define ALTITUDE 1655.0  // Altitude of SparkFun's HQ in Boulder, CO. in meters
-
-
 #define BLACK 0x0000
-#define RED 0xF800
-#define GREEN 0x07E0
+#define RED 0xE022
+#define GREEN 0x5DE9
+#define YELLOW 0xFDE0
 #define WHITE 0xFFFF
 #define GREY 0x8410
 
@@ -48,10 +39,9 @@ void setup() {
   initializeSetup();
 }
 
-double p1;
-double ecoY;
+int ecoY = 270;
 char status;
-double T, P, p0, a;
+double T, P, p0, p1, a;
 double H = 0;
 std::vector<double> averageHeight;
 std::vector<double> averageTemp;
@@ -68,13 +58,14 @@ void initializeSetup() {
   tft.drawRGBBitmap(0, 0, car_lcd, 480, 320);
 
   tft.setTextColor(WHITE, BLACK);
-  tft.setTextSize(4);
 
   for (int i = 0; i < 5; i++) {
     getSensoreData();
     averageHeight.emplace_back(H);
     averageTemp.emplace_back(T);
   };
+
+  drawEco();
 }
 
 double calcAverage(std::vector<double> const& v) {
@@ -89,13 +80,22 @@ double calcAverage(std::vector<double> const& v) {
 }
 
 void loop() {
+  const int prevEcoY = ecoY;
+
   getSensoreData();
+
+  if (prevEcoY != ecoY) {
+    tft.fillRect(16, prevEcoY, 28, 4, BLACK);
+    drawEco();
+  };
 
   averageHeight.emplace_back(H);
   averageHeight.erase(averageHeight.begin());
 
   averageTemp.emplace_back(T);
   averageTemp.erase(averageTemp.begin());
+
+  tft.setTextSize(4);
 
   tft.setCursor(258, 76);
   tft.print(calcAverage(averageTemp), 1);
@@ -130,21 +130,32 @@ void getSensoreData() {
           H = ((pow(1013.25 / P, 1 / 5.257) - 1) * (325.15)) / 0.0065;
 
           // Todo
-          // p1 = P;
+          p1 = P;
           // if (p1 > 850) {
           //   p1 = 850;
           // } else if (p1 < 350) {
           //   p1 = 350;
           // };
 
-          // tft.drawFastHLine(0, ecoY, 200,BLACK);
-          // ecoY = map(p1,350,850,300,20);
-          // tft.print(ecoY, 2);
-          // tft.print(" Y, ");
-          // tft.drawFastHLine(0, ecoY, 200,WHITE);
+          // ecoY = map(p1, 350, 850, 270, 46);
+
+          ecoY = map(p1, 300, 1010, 270, 46);
 
         } else Serial.println("error retrieving pressure measurement\n");
       } else Serial.println("error starting pressure measurement\n");
     } else Serial.println("error retrieving temperature measurement\n");
   } else Serial.println("error starting temperature measurement\n");
+}
+
+void drawEco() {
+  if (ecoY > 200) {
+    tft.fillRect(16, ecoY, 28, 4, GREEN);
+  } else if (ecoY > 120) {
+    tft.fillRect(16, ecoY, 28, 4, YELLOW);
+  } else {
+    tft.fillRect(16, ecoY, 28, 4, RED);
+  }
+  tft.setCursor(14, 288);
+  tft.setTextSize(3);
+  tft.print(P / 10, 0);
 }
