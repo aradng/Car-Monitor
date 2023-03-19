@@ -12,14 +12,13 @@ BMP280_DEV altimeter(Wire);
 BMP280_DEV manifold(Wire1);
 
 int ecoY = 270;
+int afrY = 270;
 float T, P, A;
 std::vector<double> temperature;
 std::vector<double> altitude;
 float p_manifold = 0;
 float v_bat = 0;
-float t_water = 0;
-float afr = 0;
-int i_avr = 0;
+float v_afr = 0;
 
 #define BLACK 0x0000
 #define RED 0xE022
@@ -79,12 +78,17 @@ void initializeSetup() {
 
 void loop() {
   const int prevEcoY = ecoY;
+  const int prevAfrY = afrY;
 
   getSensoreData();
 
   if (prevEcoY != ecoY) {
     tft.fillRect(16, prevEcoY, 28, 4, BLACK);
     drawEco();
+  };
+  if (prevAfrY != afrY) {
+    tft.fillRect(436, prevAfrY, 28, 4, BLACK);
+    drawAfr();
   };
 
   altitude.emplace_back(A);
@@ -94,22 +98,18 @@ void loop() {
   temperature.erase(temperature.begin());
 
   tft.setTextSize(4);
-  
+
   tft.setCursor(78, 76);
   tft.print(v_bat, 1);
-  tft.print(" V");
+  // tft.print(" V");
 
   tft.setCursor(258, 76);
   tft.print(calcAverage(temperature), 1);
-  tft.print(" C");
-  Serial.print(calcAverage(temperature));
-  Serial.println(" avr temp");
+  // tft.print(" C");
 
   tft.setCursor(258, 226);
   tft.print(calcAverage(altitude), 0);
-  tft.print(" M");
-  Serial.print(calcAverage(altitude));
-  Serial.println(" avr alt");
+  // tft.print(" M");
 
   delay(100);
 }
@@ -124,14 +124,13 @@ void getSensoreData() {
   } else if (p1 < 350) {
     p1 = 350;
   };
-  // ecoY = map(p1, 300, 1010, 270, 46);
   ecoY = map(p1, 350, 850, 270, 46);
 
-  v_bat = analogRead(A11)*5*3.3/1023;
+  v_bat = analogRead(A11) * 5 * 3.3 / 1023;
   // Serial.print("battery voltage (V): ");
   // Serial.println(v_bat);
-  // afr = analogRead(A8);
-  // t_water = analogRead(A9);
+  v_afr = analogRead(A8) * 3.3 / 1023;
+  afrY = map(v_afr, 0.1, 0.8, 270, 46);
 }
 
 double calcAverage(std::vector<double> const& v) {
@@ -156,4 +155,17 @@ void drawEco() {
   tft.setCursor(14, 288);
   tft.setTextSize(3);
   tft.print(p_manifold / 10, 0);
+}
+
+void drawAfr() {
+  if (afrY > 200) {
+    tft.fillRect(436, afrY, 28, 4, YELLOW);
+  } else if (afrY > 120) {
+    tft.fillRect(436, afrY, 28, 4, GREEN);
+  } else {
+    tft.fillRect(436, afrY, 28, 4, RED);
+  }
+  tft.setCursor(434, 288);
+  tft.setTextSize(3);
+  // tft.print(p_manifold / 10, 0);
 }
