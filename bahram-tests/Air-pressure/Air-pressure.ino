@@ -8,17 +8,24 @@
 #include <MCUFRIEND_kbv.h>  // Hardware-specific library
 MCUFRIEND_kbv tft;
 
-BMP280_DEV altimeter(Wire);
-BMP280_DEV manifold(Wire1);
+BMP280_DEV altimeter(Wire1);
+BMP280_DEV manifold(Wire);
 
 int ecoY = 270;
 int afrY = 270;
 float T, P, A;
 std::vector<double> temperature;
 std::vector<double> altitude;
+std::vector<double> oilTemp;
+
 float p_manifold = 0;
 float v_bat = 0;
 float v_afr = 0;
+
+int Vo;
+float R1 = 10000;
+float logR2, R2, To;
+float c1 = 1.009249522e-03, c2 = 2.378405444e-04, c3 = 2.019202697e-07;
 
 #define BLACK 0x0000
 #define RED 0xE022
@@ -56,13 +63,14 @@ void setup() {
   for (int j = 0; j < 4; j++) {
     getSensoreData();
     altitude.emplace_back(A);
+    oilTemp.emplace_back(To);
     temperature.emplace_back(T);
   }
   initializeSetup();
 }
 
 void initializeSetup() {
-  tft.setRotation(3);
+  tft.setRotation(1);
   tft.fillScreen(BLACK);
   // tft.drawRGBBitmap(157, 43, vwLogo, 153, 145);
   // tft.drawRGBBitmap(145, 225, name, 189, 15);
@@ -74,6 +82,7 @@ void initializeSetup() {
   tft.setTextColor(WHITE, BLACK);
 
   drawEco();
+  drawAfr();
 }
 
 void loop() {
@@ -94,6 +103,9 @@ void loop() {
   altitude.emplace_back(A);
   altitude.erase(altitude.begin());
 
+  oilTemp.emplace_back(To);
+  oilTemp.erase(oilTemp.begin());
+
   temperature.emplace_back(T);
   temperature.erase(temperature.begin());
 
@@ -101,17 +113,17 @@ void loop() {
 
   tft.setCursor(78, 76);
   tft.print(v_bat, 1);
-  // tft.print(" V");
+
+  tft.setCursor(78, 226);
+  tft.print(calcAverage(oilTemp) - 273.15, 0);
 
   tft.setCursor(258, 76);
   tft.print(calcAverage(temperature), 1);
-  // tft.print(" C");
 
   tft.setCursor(258, 226);
   tft.print(calcAverage(altitude), 0);
-  // tft.print(" M");
 
-  delay(100);
+  delay(200);
 }
 
 void getSensoreData() {
@@ -126,11 +138,20 @@ void getSensoreData() {
   };
   ecoY = map(p1, 350, 850, 270, 46);
 
-  v_bat = analogRead(A11) * 5 * 3.3 / 1023;
-  // Serial.print("battery voltage (V): ");
-  // Serial.println(v_bat);
-  v_afr = analogRead(A8) * 3.3 / 1023;
-  afrY = map(v_afr, 0.1, 0.8, 270, 46);
+  v_bat = analogRead(A9) * 4.3 * 3.3 / 1023;
+
+  v_afr = analogRead(A11) * 3.3 / 1023;
+  if (v_afr > 0.8) {
+    v_afr = 0.8;
+  } else if (v_afr < 0.1) {
+    v_afr = 0.1;
+  };
+  afrY = map(v_afr * 10, 1, 8, 270, 46);
+
+  Vo = analogRead(A8);
+  R2 = R1 * (1023.0 / (float)Vo - 1.0);
+  logR2 = log(R2);
+  To = (1.0 / (c1 + c2 * logR2 + c3 * logR2 * logR2 * logR2)) * 0.9;
 }
 
 double calcAverage(std::vector<double> const& v) {
@@ -167,5 +188,5 @@ void drawAfr() {
   }
   tft.setCursor(434, 288);
   tft.setTextSize(3);
-  // tft.print(p_manifold / 10, 0);
+  tft.print(v_afr * 10, 0);
 }
