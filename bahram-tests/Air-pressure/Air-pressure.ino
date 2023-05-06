@@ -115,16 +115,7 @@ void loop() {
   if (prevAfrY != afrY) {
     tft.fillRect(436, prevAfrY, 28, 4, BLACK);
     drawAfr();
-  };
-
-  altitude.emplace_back(A);
-  altitude.erase(altitude.begin());
-
-  oilTemp.emplace_back(To);
-  oilTemp.erase(oilTemp.begin());
-
-  temperature.emplace_back(T);
-  temperature.erase(temperature.begin());
+  }
 
   tft.setTextSize(4);
   // air temperature
