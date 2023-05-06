@@ -11,6 +11,7 @@ MCUFRIEND_kbv tft;
 BMP280_DEV altimeter(Wire1);
 BMP280_DEV manifold(Wire);
 
+int i = 1;
 int ecoY = 270;
 int afrY = 270;
 float T, P, A;
@@ -88,6 +89,7 @@ void initializeSetup() {
 void loop() {
   const int prevEcoY = ecoY;
   const int prevAfrY = afrY;
+  i++;
 
   getSensoreData();
 
@@ -98,6 +100,13 @@ void loop() {
   if (prevAfrY != afrY) {
     tft.fillRect(436, prevAfrY, 28, 4, BLACK);
     drawAfr();
+  };
+  if (i > 30) {
+    i = 1;
+    tft.fillRect(78, 76, 100, 36, BLACK);
+    tft.fillRect(78, 226, 100, 36, BLACK);
+    tft.fillRect(258, 76, 100, 36, BLACK);
+    tft.fillRect(258, 226, 100, 36, BLACK);
   };
 
   altitude.emplace_back(A);
