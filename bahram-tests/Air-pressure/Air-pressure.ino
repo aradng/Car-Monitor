@@ -13,7 +13,6 @@ thermistor thermOil(A8, 0);
 BMP280_DEV altimeter(Wire1);
 BMP280_DEV manifold(Wire);
 
-int i = 1;
 int ecoY = 270;
 int afrY = 270;
 float T, P, A, To;
@@ -21,12 +20,16 @@ std::vector<double> temperature;
 std::vector<double> altitude;
 std::vector<double> oilTemp;
 
+double avrTemperature;
+double prevAvrTemperature;
 double avrAltitude;
 double prevAvrAltitude;
 double avrOilTemp;
+double prevAvrOilTemp;
 
 float p_manifold = 0;
-float v_bat = 0;
+float batteryVoltage = 0;
+float prevBatteryVoltage = 0;
 float v_afr = 0;
 
 #define BLACK 0x0000
@@ -46,7 +49,7 @@ void setup() {
   uint16_t ID = tft.readID();
 
   if (ID == 0xD3D3)
-    ID = 0x9481;  // force ID if write-only display
+    ID = 0x9481;
   tft.begin(ID);
   if (altimeter.begin(0x76))
     Serial.println("Altimeter Operational.");
@@ -59,10 +62,10 @@ void setup() {
   else {
     Serial.println("Manifold init Failed!");
   }
-  altimeter.setTimeStandby(TIME_STANDBY_05MS);  // Set the standby time to 2 seconds
-  altimeter.startNormalConversion();            // Start BMP280 continuous conversion in NORMAL_MODE
-  manifold.setTimeStandby(TIME_STANDBY_05MS);   // Set the standby time to 2 seconds
-  manifold.startNormalConversion();             // Start BMP280 continuous conversion in NORMAL_MODE
+  altimeter.setTimeStandby(TIME_STANDBY_05MS);
+  altimeter.startNormalConversion();
+  manifold.setTimeStandby(TIME_STANDBY_05MS);
+  manifold.startNormalConversion();
   for (int j = 0; j < 4; j++) {
     getSensoreData();
     altitude.emplace_back(A);
@@ -75,25 +78,29 @@ void setup() {
 void initializeSetup() {
   tft.setRotation(1);
   tft.fillScreen(BLACK);
+  
   // tft.drawRGBBitmap(157, 43, vwLogo, 153, 145);
   // tft.drawRGBBitmap(145, 225, name, 189, 15);
-
   // delay(1000);
 
   tft.drawRGBBitmap(0, 0, car_lcd, 480, 320);
 
   tft.setTextColor(WHITE, BLACK);
 
+  // avrTemperature = calcAverage(temperature);
   avrAltitude = calcAverage(altitude);
+  // avrOilTemp = calcAverage(oilTemp);
   drawEco();
   drawAfr();
 }
 
 void loop() {
+  prevAvrTemperature = avrTemperature;
   prevAvrAltitude = avrAltitude;
+  prevAvrOilTemp = avrOilTemp;
+  prevBatteryVoltage = batteryVoltage;
   const int prevEcoY = ecoY;
   const int prevAfrY = afrY;
-  i++;
 
   getSensoreData();
   tft.setTextColor(WHITE, BLACK);
@@ -109,13 +116,6 @@ void loop() {
     tft.fillRect(436, prevAfrY, 28, 4, BLACK);
     drawAfr();
   };
-  if (i > 30) {
-    i = 1;
-    tft.fillRect(78, 76, 100, 36, BLACK);
-    tft.fillRect(78, 226, 100, 36, BLACK);
-    tft.fillRect(258, 76, 100, 36, BLACK);
-    tft.fillRect(258, 226, 100, 36, BLACK);
-  };
 
   altitude.emplace_back(A);
   altitude.erase(altitude.begin());
@@ -130,32 +130,45 @@ void loop() {
   // air temperature
   temperature.emplace_back(T);
   temperature.erase(temperature.begin());
+  avrTemperature = calcAverage(temperature);
+  if ((avrTemperature < 10 && prevAvrTemperature > 10) || avrTemperature > 0 && prevAvrTemperature < 0) {
+    tft.fillRect(258, 76, 100, 36, BLACK);
+  }
   tft.setCursor(258, 76);
-  tft.print(calcAverage(temperature), 1);
+  tft.print(avrTemperature, 1);
 
   // altitude
   altitude.emplace_back(A);
   altitude.erase(altitude.begin());
   avrAltitude = calcAverage(altitude);
+  if ((avrAltitude < 1000 && prevAvrAltitude > 1000) || (avrAltitude < 100 && prevAvrAltitude > 100)) {
+    tft.fillRect(258, 226, 100, 36, BLACK);
+  }
   setAltitudeColor();
   tft.setCursor(258, 226);
   tft.print(avrAltitude, 0);
 
   // battery voltage
-  setBatteryColor(v_bat);
+  if (batteryVoltage < 10 && prevBatteryVoltage > 10) {
+    tft.fillRect(78, 76, 100, 36, BLACK);
+  }
+  setBatteryColor(batteryVoltage);
   tft.setCursor(78, 76);
-  tft.print(v_bat, 1);
+  tft.print(batteryVoltage, 1);
 
   // oil temperature
   oilTemp.emplace_back(To);
   oilTemp.erase(oilTemp.begin());
   avrOilTemp = calcAverage(oilTemp);
+  if ((avrOilTemp < 100 && prevAvrOilTemp > 100)) {
+    tft.fillRect(78, 226, 100, 36, BLACK);
+  }
   setOilTempColor(avrOilTemp);
   tft.setCursor(78, 226);
   tft.print(avrOilTemp, 0);
 
   // delay
-  delay(200);
+  delay(300);
 }
 
 void getSensoreData() {
@@ -170,7 +183,7 @@ void getSensoreData() {
   };
   ecoY = map(p1, 350, 850, 270, 46);
 
-  v_bat = analogRead(A9) * 4.3 * 3.3 / 1023;
+  batteryVoltage = analogRead(A9) * 4.3 * 3.3 / 1023;
 
   v_afr = analogRead(A11) * 3.3 / 1023;
   if (v_afr > 0.8) {
