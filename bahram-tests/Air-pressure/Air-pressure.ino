@@ -1,5 +1,6 @@
 
 #include <BMP280_DEV.h>  // Include the BMP280_DEV.h library
+#include <thermistor.h>
 #include <Wire.h>
 #include <vector>
 #include "car-lcd.c"
@@ -7,25 +8,25 @@
 #include <Adafruit_GFX.h>   // Core graphics library
 #include <MCUFRIEND_kbv.h>  // Hardware-specific library
 MCUFRIEND_kbv tft;
+thermistor thermOil(A8, 0);
 
 BMP280_DEV altimeter(Wire1);
 BMP280_DEV manifold(Wire);
 
 int ecoY = 270;
 int afrY = 270;
-float T, P, A;
+float T, P, A, To;
 std::vector<double> temperature;
 std::vector<double> altitude;
 std::vector<double> oilTemp;
 
+double avrAltitude;
+double prevAvrAltitude;
+double avrOilTemp;
+
 float p_manifold = 0;
 float v_bat = 0;
 float v_afr = 0;
-
-int Vo;
-float R1 = 10000;
-float logR2, R2, To;
-float c1 = 1.009249522e-03, c2 = 2.378405444e-04, c3 = 2.019202697e-07;
 
 #define BLACK 0x0000
 #define RED 0xE022
@@ -33,11 +34,12 @@ float c1 = 1.009249522e-03, c2 = 2.378405444e-04, c3 = 2.019202697e-07;
 #define YELLOW 0xFDE0
 #define WHITE 0xFFFF
 #define GREY 0x8410
+#define BLUE 0x041D
 
 void getSensoreData();
 
 void setup() {
-  delay(100);
+  delay(200);
 
   Serial.begin(9600);
   uint16_t ID = tft.readID();
@@ -81,48 +83,60 @@ void initializeSetup() {
 
   tft.setTextColor(WHITE, BLACK);
 
+  avrAltitude = calcAverage(altitude);
   drawEco();
   drawAfr();
 }
 
 void loop() {
+  prevAvrAltitude = avrAltitude;
   const int prevEcoY = ecoY;
   const int prevAfrY = afrY;
 
   getSensoreData();
+  tft.setTextColor(WHITE, BLACK);
 
+  // eco
   if (prevEcoY != ecoY) {
     tft.fillRect(16, prevEcoY, 28, 4, BLACK);
     drawEco();
-  };
+  }
+
+  // afr
   if (prevAfrY != afrY) {
     tft.fillRect(436, prevAfrY, 28, 4, BLACK);
     drawAfr();
-  };
-
-  altitude.emplace_back(A);
-  altitude.erase(altitude.begin());
-
-  oilTemp.emplace_back(To);
-  oilTemp.erase(oilTemp.begin());
-
-  temperature.emplace_back(T);
-  temperature.erase(temperature.begin());
+  }
 
   tft.setTextSize(4);
-
-  tft.setCursor(78, 76);
-  tft.print(v_bat, 1);
-
-  tft.setCursor(78, 226);
-  tft.print(calcAverage(oilTemp) - 273.15, 0);
-
+  // air temperature
+  temperature.emplace_back(T);
+  temperature.erase(temperature.begin());
   tft.setCursor(258, 76);
   tft.print(calcAverage(temperature), 1);
 
+  // altitude
+  altitude.emplace_back(A);
+  altitude.erase(altitude.begin());
+  avrAltitude = calcAverage(altitude);
+  setAltitudeColor();
   tft.setCursor(258, 226);
-  tft.print(calcAverage(altitude), 0);
+  tft.print(avrAltitude, 0);
 
+  // battery voltage
+  setBatteryColor(v_bat);
+  tft.setCursor(78, 76);
+  tft.print(v_bat, 1);
+
+  // oil temperature
+  oilTemp.emplace_back(To);
+  oilTemp.erase(oilTemp.begin());
+  avrOilTemp = calcAverage(oilTemp);
+  setOilTempColor(avrOilTemp);
+  tft.setCursor(78, 226);
+  tft.print(avrOilTemp, 0);
+
+  // delay
   delay(200);
 }
 
@@ -148,13 +162,10 @@ void getSensoreData() {
   };
   afrY = map(v_afr * 10, 1, 8, 270, 46);
 
-  Vo = analogRead(A8);
-  R2 = R1 * (1023.0 / (float)Vo - 1.0);
-  logR2 = log(R2);
-  To = (1.0 / (c1 + c2 * logR2 + c3 * logR2 * logR2 * logR2)) * 0.9;
+  To = (thermOil.analog2temp() + 273) * 0.85 - 273;
 }
 
-double calcAverage(std::vector<double> const& v) {
+double calcAverage(std::vector<double> const &v) {
   if (v.empty()) {
     return 0;
   }
@@ -189,4 +200,34 @@ void drawAfr() {
   tft.setCursor(434, 288);
   tft.setTextSize(3);
   tft.print(v_afr * 10, 0);
+}
+
+void setAltitudeColor() {
+  if (prevAvrAltitude - avrAltitude < -0.2) {
+    tft.setTextColor(GREEN, BLACK);
+  } else if (prevAvrAltitude - avrAltitude > 0.2) {
+    tft.setTextColor(BLUE, BLACK);
+  }
+}
+
+void setBatteryColor(float voltage) {
+  if (voltage < 12) {
+    tft.setTextColor(YELLOW, BLACK);
+  } else if (voltage < 13) {
+    tft.setTextColor(BLUE, BLACK);
+  } else if (voltage > 14) {
+    tft.setTextColor(RED, BLACK);
+  } else {
+    tft.setTextColor(GREEN, BLACK);
+  }
+}
+
+void setOilTempColor(double temp) {
+  if (temp < 80) {
+    tft.setTextColor(BLUE, BLACK);
+  } else if (temp > 110) {
+    tft.setTextColor(RED, BLACK);
+  } else {
+    tft.setTextColor(GREEN, BLACK);
+  }
 }
