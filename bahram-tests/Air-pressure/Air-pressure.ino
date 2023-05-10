@@ -1,12 +1,12 @@
 
-#include <BMP280_DEV.h>  // Include the BMP280_DEV.h library
+#include <BMP280_DEV.h>
 #include <thermistor.h>
 #include <Wire.h>
 #include <vector>
 #include "car-lcd.c"
 
-#include <Adafruit_GFX.h>   // Core graphics library
-#include <MCUFRIEND_kbv.h>  // Hardware-specific library
+#include <Adafruit_GFX.h>
+#include <MCUFRIEND_kbv.h>
 MCUFRIEND_kbv tft;
 thermistor thermOil(A8, 0);
 
@@ -25,7 +25,7 @@ double prevAvrTemperature;
 double avrAltitude;
 double prevAvrAltitude;
 double avrOilTemp;
-double prevAvrOilTemp;
+double prevOilTemp;
 
 float p_manifold = 0;
 float batteryVoltage = 0;
@@ -97,7 +97,7 @@ void initializeSetup() {
 void loop() {
   prevAvrTemperature = avrTemperature;
   prevAvrAltitude = avrAltitude;
-  prevAvrOilTemp = avrOilTemp;
+  prevOilTemp = To;
   prevBatteryVoltage = batteryVoltage;
   const int prevEcoY = ecoY;
   const int prevAfrY = afrY;
@@ -151,7 +151,7 @@ void loop() {
   oilTemp.emplace_back(To);
   oilTemp.erase(oilTemp.begin());
   avrOilTemp = calcAverage(oilTemp);
-  if ((avrOilTemp < 100 && prevAvrOilTemp > 100)) {
+  if ((To < 100 && prevOilTemp > 100)) {
     tft.fillRect(78, 226, 100, 36, BLACK);
   }
   setOilTempColor(avrOilTemp);
@@ -184,7 +184,7 @@ void getSensoreData() {
   };
   afrY = map(v_afr * 10, 1, 8, 270, 46);
 
-  To = (thermOil.analog2temp() + 273) * 0.85 - 273;
+  To = (thermOil.analog2temp() + 273) * 0.84 - 273;
 }
 
 double calcAverage(std::vector<double> const &v) {
