@@ -2,7 +2,6 @@
 #include <BMP280_DEV.h>
 #include <thermistor.h>
 #include <Wire.h>
-#include <vector>
 #include "car-lcd.c"
 
 #include <Adafruit_GFX.h>
@@ -16,9 +15,11 @@ BMP280_DEV manifold(Wire);
 int ecoY = 270;
 int afrY = 270;
 float T, P, A, To;
-std::vector<double> temperature;
-std::vector<double> altitude;
-std::vector<double> oilTemp;
+const int n = 5 ;
+int i = 0;
+double temperature[n];
+double altitude[n];
+double oilTemp[n];
 
 double avrTemperature;
 double prevAvrTemperature;
@@ -68,9 +69,6 @@ void setup() {
   manifold.startNormalConversion();
   for (int j = 0; j < 4; j++) {
     getSensoreData();
-    altitude.emplace_back(A);
-    oilTemp.emplace_back(To);
-    temperature.emplace_back(T);
   }
   initializeSetup();
 }
@@ -78,7 +76,7 @@ void setup() {
 void initializeSetup() {
   tft.setRotation(1);
   tft.fillScreen(BLACK);
-  
+
   // tft.drawRGBBitmap(157, 43, vwLogo, 153, 145);
   // tft.drawRGBBitmap(145, 225, name, 189, 15);
   // delay(1000);
@@ -119,8 +117,6 @@ void loop() {
 
   tft.setTextSize(4);
   // air temperature
-  temperature.emplace_back(T);
-  temperature.erase(temperature.begin());
   avrTemperature = calcAverage(temperature);
   if ((avrTemperature < 10 && prevAvrTemperature > 10) || avrTemperature > 0 && prevAvrTemperature < 0) {
     tft.fillRect(258, 76, 100, 36, BLACK);
@@ -129,8 +125,6 @@ void loop() {
   tft.print(avrTemperature, 1);
 
   // altitude
-  altitude.emplace_back(A);
-  altitude.erase(altitude.begin());
   avrAltitude = calcAverage(altitude);
   if ((avrAltitude < 1000 && prevAvrAltitude > 1000) || (avrAltitude < 100 && prevAvrAltitude > 100)) {
     tft.fillRect(258, 226, 100, 36, BLACK);
@@ -148,10 +142,8 @@ void loop() {
   tft.print(batteryVoltage, 1);
 
   // oil temperature
-  oilTemp.emplace_back(To);
-  oilTemp.erase(oilTemp.begin());
   avrOilTemp = calcAverage(oilTemp);
-  if ((To < 100 && prevOilTemp > 100)) {
+  if ((To <= 100 && prevOilTemp >= 100)) {
     tft.fillRect(78, 226, 100, 36, BLACK);
   }
   setOilTempColor(avrOilTemp);
@@ -164,6 +156,8 @@ void loop() {
 
 void getSensoreData() {
   altimeter.getCurrentMeasurements(T, P, A);
+  temperature[i % n] = T;
+  altitude[i % n] = A;
 
   manifold.getCurrentPressure(p_manifold);
   float p1 = p_manifold;
@@ -185,17 +179,16 @@ void getSensoreData() {
   afrY = map(v_afr * 10, 1, 8, 270, 46);
 
   To = (thermOil.analog2temp() + 273) * 0.84 - 273;
+  oilTemp[i % n] = To;
+
+  i++;
 }
 
-double calcAverage(std::vector<double> const &v) {
-  if (v.empty()) {
-    return 0;
-  }
+double calcAverage(double data[]) {
   double sum = 0;
-  for (int i = 0; i < v.size(); i++) {
-    sum += v.at(i);
-  }
-  return sum / v.size();
+  for (int j = 0; j < n; i++)
+    sum += data[j];
+  return sum / n;
 }
 
 void drawEco() {
