@@ -2,20 +2,28 @@
 #include <BMP280_DEV.h>
 #include <thermistor.h>
 #include <Wire.h>
-#include "car-lcd.c"
+#include "eco-icon.c"
+#include "v-icon.c"
+#include "temp-icon.c"
+#include "oil-icon.c"
+#include "m-icon.c"
+#include "c-icon.c"
+#include "battery-icon.c"
+#include "altitude-icon.c"
+#include "afr-icon.c"
 
 #include <Adafruit_GFX.h>
 #include <MCUFRIEND_kbv.h>
 MCUFRIEND_kbv tft;
 thermistor thermOil(A8, 0);
 
-BMP280_DEV altimeter(Wire1);
+BMP280_DEV altimeter(Wire);
 BMP280_DEV manifold(Wire);
 
 int ecoY = 270;
 int afrY = 270;
 float T, P, A, To;
-const int n = 5 ;
+const int n = 5;
 int i = 0;
 double temperature[n];
 double altitude[n];
@@ -26,7 +34,7 @@ double prevAvrTemperature;
 double avrAltitude;
 double prevAvrAltitude;
 double avrOilTemp;
-double prevOilTemp;
+double prevAvrOilTemp;
 
 float p_manifold = 0;
 float batteryVoltage = 0;
@@ -44,50 +52,44 @@ float v_afr = 0;
 void getSensoreData();
 
 void setup() {
-  delay(200);
-
   Serial.begin(9600);
-  uint16_t ID = tft.readID();
 
+  tft.reset();
+  uint16_t ID = tft.readID();
   if (ID == 0xD3D3)
     ID = 0x9481;
   tft.begin(ID);
-  if (altimeter.begin(0x76))
+
+  if (altimeter.begin(0x77))
     Serial.println("Altimeter Operational.");
-  else {
+  else
     Serial.println("Altimeter init Failed!");
-  }
 
   if (manifold.begin(0x76))
     Serial.println("Manifold Pressure Sensor Operational.");
-  else {
+  else
     Serial.println("Manifold init Failed!");
-  }
+
   altimeter.setTimeStandby(TIME_STANDBY_05MS);
   altimeter.startNormalConversion();
   manifold.setTimeStandby(TIME_STANDBY_05MS);
   manifold.startNormalConversion();
-  for (int j = 0; j < 4; j++) {
+
+  for (int j = 0; j < 5; j++) {
     getSensoreData();
   }
+
   initializeSetup();
 }
 
 void initializeSetup() {
   tft.setRotation(1);
   tft.fillScreen(BLACK);
-
-  // tft.drawRGBBitmap(157, 43, vwLogo, 153, 145);
-  // tft.drawRGBBitmap(145, 225, name, 189, 15);
-  // delay(1000);
-
-  tft.drawRGBBitmap(0, 0, car_lcd, 480, 320);
-
+  drawBackGround();
   tft.setTextColor(WHITE, BLACK);
 
-  // avrTemperature = calcAverage(temperature);
   avrAltitude = calcAverage(altitude);
-  // avrOilTemp = calcAverage(oilTemp);
+
   drawEco();
   drawAfr();
 }
@@ -95,7 +97,7 @@ void initializeSetup() {
 void loop() {
   prevAvrTemperature = avrTemperature;
   prevAvrAltitude = avrAltitude;
-  prevOilTemp = To;
+  prevAvrOilTemp = avrOilTemp;
   prevBatteryVoltage = batteryVoltage;
   const int prevEcoY = ecoY;
   const int prevAfrY = afrY;
@@ -143,7 +145,7 @@ void loop() {
 
   // oil temperature
   avrOilTemp = calcAverage(oilTemp);
-  if ((To <= 100 && prevOilTemp >= 100)) {
+  if ((To <= 100 && prevAvrOilTemp >= 100)) {
     tft.fillRect(78, 226, 100, 36, BLACK);
   }
   setOilTempColor(avrOilTemp);
@@ -168,9 +170,9 @@ void getSensoreData() {
   };
   ecoY = map(p1, 350, 850, 270, 46);
 
-  batteryVoltage = analogRead(A9) * 4.3 * 3.3 / 1023;
+  batteryVoltage = analogRead(A9) * (5.0 / 1023) * 4.3;
 
-  v_afr = analogRead(A11) * 3.3 / 1023;
+  v_afr = analogRead(A11) * (5.0 / 1023);
   if (v_afr > 0.8) {
     v_afr = 0.8;
   } else if (v_afr < 0.1) {
@@ -178,7 +180,7 @@ void getSensoreData() {
   };
   afrY = map(v_afr * 10, 1, 8, 270, 46);
 
-  To = (thermOil.analog2temp() + 273) * 0.84 - 273;
+  To = thermOil.analog2temp();
   oilTemp[i % n] = To;
 
   i++;
@@ -186,7 +188,7 @@ void getSensoreData() {
 
 double calcAverage(double data[]) {
   double sum = 0;
-  for (int j = 0; j < n; i++)
+  for (int j = 0; j < n; j++)
     sum += data[j];
   return sum / n;
 }
@@ -230,7 +232,7 @@ void setBatteryColor(float voltage) {
     tft.setTextColor(YELLOW, BLACK);
   } else if (voltage < 13) {
     tft.setTextColor(BLUE, BLACK);
-  } else if (voltage > 14) {
+  } else if (voltage > 14.5) {
     tft.setTextColor(RED, BLACK);
   } else {
     tft.setTextColor(GREEN, BLACK);
@@ -245,4 +247,49 @@ void setOilTempColor(double temp) {
   } else {
     tft.setTextColor(GREEN, BLACK);
   }
+}
+
+void drawBackGround() {
+  drawMainBox(70);
+  drawMainBox(250);
+  drawSideBox(1);
+  drawSideBox(2);
+  tft.drawRGBBitmap(13, 10, eco_icon, 35, 17);
+  tft.drawRGBBitmap(432, 10, afr_icon, 35, 17);
+  tft.drawRGBBitmap(133, 21, battery_icon, 40, 31);
+  tft.drawRGBBitmap(318, 16, temp_icon, 23, 38);
+  tft.drawRGBBitmap(127, 169, oil_icon, 48, 32);
+  tft.drawRGBBitmap(308, 167, altitude_icon, 45, 31);
+  tft.drawRGBBitmap(203, 95, v_icon, 15, 19);
+  tft.drawRGBBitmap(378, 95, c_icon, 23, 17);
+  tft.drawRGBBitmap(198, 258, c_icon, 23, 17);
+  tft.drawRGBBitmap(381, 258, m_icon, 17, 17);
+}
+
+void drawMainBox(int x) {
+  int y = 10;
+  int w = 160;
+  int h = 300;
+  tft.fillRoundRect(x - 2, y - 2, w + 4, h + 4, 4, WHITE);
+  tft.fillRoundRect(x + 2, y + 2, w - 4, h - 4, 2, BLACK);
+  tft.fillRoundRect(x + 20 - 2, y + 150 - 2, 120 + 4, 4, 1, WHITE);
+}
+
+void drawSideBox(int j) {
+  int x = 10;
+  if (j == 2) {
+    x = 430;
+  }
+  int y = 40;
+  int w = 40;
+  int h = 80;
+  tft.fillRoundRect(x - 2, y - 2, w + 4, h + 8, 4, RED);
+  if (j == 1) {
+    tft.fillRoundRect(x - 2, y + 240 - 84, w + 4, h + 4, 4, GREEN);
+    tft.fillRect(x - 2, y + 80, w + 4, h, YELLOW);
+  } else {
+    tft.fillRoundRect(x - 2, y + 240 - 84, w + 4, h + 4, 4, YELLOW);
+    tft.fillRect(x - 2, y + 80, w + 4, h, GREEN);
+  }
+  tft.fillRoundRect(x + 2, y + 2, w - 4, h * 3 - 6, 2, BLACK);
 }
