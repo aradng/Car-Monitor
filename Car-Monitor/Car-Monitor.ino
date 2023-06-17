@@ -222,9 +222,9 @@ void drawAfr() {
 }
 
 void setAltitudeColor() {
-  if (prevAvrAltitude - avrAltitude < -0.2) {
+  if (prevAvrAltitude - avrAltitude < -0.1) {
     tft.setTextColor(GREEN, BLACK);
-  } else if (prevAvrAltitude - avrAltitude > 0.2) {
+  } else if (prevAvrAltitude - avrAltitude > 0.1) {
     tft.setTextColor(BLUE, BLACK);
   }
 }
