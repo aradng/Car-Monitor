@@ -28,6 +28,7 @@ int i = 0;
 double temperature[n];
 double altitude[n];
 double oilTemp[n];
+double batteryVoltage[n];
 
 double avrTemperature;
 double prevAvrTemperature;
@@ -37,8 +38,8 @@ double avrOilTemp;
 double prevAvrOilTemp;
 
 float p_manifold = 0;
-float batteryVoltage = 0;
-float prevBatteryVoltage = 0;
+float avrBatteryVoltage = 0;
+float prevAvrBatteryVoltage = 0;
 float v_afr = 0;
 
 #define BLACK 0x0000
@@ -98,7 +99,7 @@ void loop() {
   prevAvrTemperature = avrTemperature;
   prevAvrAltitude = avrAltitude;
   prevAvrOilTemp = avrOilTemp;
-  prevBatteryVoltage = batteryVoltage;
+  prevAvrBatteryVoltage = avrBatteryVoltage;
   const int prevEcoY = ecoY;
   const int prevAfrY = afrY;
 
@@ -136,12 +137,13 @@ void loop() {
   tft.print(avrAltitude, 0);
 
   // battery voltage
-  if (batteryVoltage < 10 && prevBatteryVoltage > 10) {
+  avrBatteryVoltage = calcAverage(batteryVoltage);
+  if (avrBatteryVoltage < 10 && prevAvrBatteryVoltage > 10) {
     tft.fillRect(78, 76, 100, 36, BLACK);
   }
-  setBatteryColor(batteryVoltage);
+  setBatteryColor(avrBatteryVoltage);
   tft.setCursor(78, 76);
-  tft.print(batteryVoltage, 1);
+  tft.print(avrBatteryVoltage, 1);
 
   // oil temperature
   avrOilTemp = calcAverage(oilTemp);
@@ -170,15 +172,15 @@ void getSensoreData() {
   };
   ecoY = map(p1, 350, 850, 270, 46);
 
-  batteryVoltage = analogRead(A9) * (5.0 / 1023) * 4.3;
+  batteryVoltage[i % n] = analogRead(A9) * (5.0 / 1023) * 4.3 * 1.04;
 
   v_afr = analogRead(A11) * (5.0 / 1023);
-  if (v_afr > 0.8) {
-    v_afr = 0.8;
+  if (v_afr > 0.9) {
+    v_afr = 0.9;
   } else if (v_afr < 0.1) {
     v_afr = 0.1;
   };
-  afrY = map(v_afr * 10, 1, 8, 270, 46);
+  afrY = map(v_afr * 10, 1, 9, 270, 46);
 
   To = thermOil.analog2temp();
   oilTemp[i % n] = To;
@@ -228,9 +230,9 @@ void setAltitudeColor() {
 }
 
 void setBatteryColor(float voltage) {
-  if (voltage < 12) {
+  if (voltage < 11) {
     tft.setTextColor(YELLOW, BLACK);
-  } else if (voltage < 13) {
+  } else if (voltage < 12) {
     tft.setTextColor(BLUE, BLACK);
   } else if (voltage > 14.5) {
     tft.setTextColor(RED, BLACK);
@@ -242,7 +244,7 @@ void setBatteryColor(float voltage) {
 void setOilTempColor(double temp) {
   if (temp < 80) {
     tft.setTextColor(BLUE, BLACK);
-  } else if (temp > 110) {
+  } else if (temp > 125) {
     tft.setTextColor(RED, BLACK);
   } else {
     tft.setTextColor(GREEN, BLACK);
