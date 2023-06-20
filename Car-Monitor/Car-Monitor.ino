@@ -1,7 +1,9 @@
 
 #include <BMP280_DEV.h>
 #include <thermistor.h>
-#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <MCUFRIEND_kbv.h>
+
 #include "eco-icon.c"
 #include "v-icon.c"
 #include "temp-icon.c"
@@ -12,13 +14,11 @@
 #include "altitude-icon.c"
 #include "afr-icon.c"
 
-#include <Adafruit_GFX.h>
-#include <MCUFRIEND_kbv.h>
 MCUFRIEND_kbv tft;
 thermistor thermOil(A8, 0);
 
-BMP280_DEV altimeter(Wire);
-BMP280_DEV manifold(Wire);
+BMP280_DEV altimeter;
+BMP280_DEV manifold;
 
 int ecoY = 270;
 int afrY = 270;
@@ -53,6 +53,8 @@ float v_afr = 0;
 void getSensoreData();
 
 void setup() {
+  delay(500);
+
   Serial.begin(9600);
 
   tft.reset();
@@ -60,7 +62,7 @@ void setup() {
   if (ID == 0xD3D3)
     ID = 0x9481;
   tft.begin(ID);
-
+  
   if (altimeter.begin(0x77))
     Serial.println("Altimeter Operational.");
   else
@@ -180,7 +182,7 @@ void getSensoreData() {
   } else if (v_afr < 0.1) {
     v_afr = 0.1;
   };
-  afrY = map(v_afr * 10, 1, 9, 270, 46);
+  afrY = map(v_afr * 100, 10, 90, 270, 46);
 
   To = thermOil.analog2temp();
   oilTemp[i % n] = To;
@@ -222,9 +224,9 @@ void drawAfr() {
 }
 
 void setAltitudeColor() {
-  if (prevAvrAltitude - avrAltitude < -0.1) {
+  if (prevAvrAltitude - avrAltitude < -0.2) {
     tft.setTextColor(GREEN, BLACK);
-  } else if (prevAvrAltitude - avrAltitude > 0.1) {
+  } else if (prevAvrAltitude - avrAltitude > 0.2) {
     tft.setTextColor(BLUE, BLACK);
   }
 }
