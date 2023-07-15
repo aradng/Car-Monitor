@@ -37,9 +37,9 @@ double prevAvrAltitude;
 double avrOilTemp;
 double prevAvrOilTemp;
 
-float p_manifold = 0;
 float avrBatteryVoltage = 0;
 float prevAvrBatteryVoltage = 0;
+float p_manifold = 0;
 float v_afr = 0;
 
 #define BLACK 0x0000
@@ -53,7 +53,7 @@ float v_afr = 0;
 void getSensoreData();
 
 void setup() {
-  delay(500);
+  delay(100);
 
   Serial.begin(9600);
 
@@ -106,6 +106,7 @@ void loop() {
   const int prevAfrY = afrY;
 
   getSensoreData();
+
   tft.setTextColor(WHITE, BLACK);
 
   // eco
@@ -121,6 +122,7 @@ void loop() {
   }
 
   tft.setTextSize(4);
+
   // air temperature
   avrTemperature = calcAverage(temperature);
   if ((avrTemperature < 10 && prevAvrTemperature > 10) || avrTemperature > 0 && prevAvrTemperature < 0) {
@@ -236,20 +238,22 @@ void setBatteryColor(float voltage) {
     tft.setTextColor(YELLOW, BLACK);
   } else if (voltage < 12) {
     tft.setTextColor(BLUE, BLACK);
-  } else if (voltage > 14.5) {
-    tft.setTextColor(RED, BLACK);
-  } else {
+  } else if (voltage < 14.5) {
     tft.setTextColor(GREEN, BLACK);
+  } else {
+    tft.setTextColor(RED, BLACK);
   }
 }
 
 void setOilTempColor(double temp) {
   if (temp < 80) {
     tft.setTextColor(BLUE, BLACK);
-  } else if (temp > 125) {
-    tft.setTextColor(RED, BLACK);
-  } else {
+  } else if (temp < 100) {
     tft.setTextColor(GREEN, BLACK);
+  } else if (temp < 120) {
+    tft.setTextColor(YELLOW, BLACK);
+  } else {
+    tft.setTextColor(RED, BLACK);
   }
 }
 
