@@ -125,7 +125,7 @@ void loop() {
 
   // air temperature
   avrTemperature = calcAverage(temperature);
-  if ((avrTemperature < 10 && prevAvrTemperature > 10) || avrTemperature > 0 && prevAvrTemperature < 0) {
+  if ((avrTemperature < 9.95 && prevAvrTemperature > 9.95) || avrTemperature > -0.05 && prevAvrTemperature < -0.05) {
     tft.fillRect(258, 76, 100, 36, BLACK);
   }
   tft.setCursor(258, 76);
@@ -133,7 +133,7 @@ void loop() {
 
   // altitude
   avrAltitude = calcAverage(altitude);
-  if ((avrAltitude < 1000 && prevAvrAltitude > 1000) || (avrAltitude < 100 && prevAvrAltitude > 100)) {
+  if ((avrAltitude < 999.5 && prevAvrAltitude > 999.5) || (avrAltitude < 99.5 && prevAvrAltitude > 99.5)) {
     tft.fillRect(258, 226, 100, 36, BLACK);
   }
   setAltitudeColor();
@@ -142,7 +142,7 @@ void loop() {
 
   // battery voltage
   avrBatteryVoltage = calcAverage(batteryVoltage);
-  if (avrBatteryVoltage < 10 && prevAvrBatteryVoltage > 10) {
+  if (avrBatteryVoltage < 9.95 && prevAvrBatteryVoltage > 9.95) {
     tft.fillRect(78, 76, 100, 36, BLACK);
   }
   setBatteryColor(avrBatteryVoltage);
@@ -151,7 +151,7 @@ void loop() {
 
   // oil temperature
   avrOilTemp = calcAverage(oilTemp);
-  if ((To <= 100 && prevAvrOilTemp >= 100)) {
+  if ((To < 99.5 && prevAvrOilTemp > 99.5)) {
     tft.fillRect(78, 226, 100, 36, BLACK);
   }
   setOilTempColor(avrOilTemp);
@@ -248,7 +248,7 @@ void setBatteryColor(float voltage) {
 void setOilTempColor(double temp) {
   if (temp < 80) {
     tft.setTextColor(BLUE, BLACK);
-  } else if (temp < 100) {
+  } else if (temp < 110) {
     tft.setTextColor(GREEN, BLACK);
   } else if (temp < 120) {
     tft.setTextColor(YELLOW, BLACK);
